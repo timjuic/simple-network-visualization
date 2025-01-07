@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime
 import threading
+from collections import defaultdict  # Add this import
 from traffic_capture import NetworkMonitor
 
 # Initialize Flask and Dash
@@ -22,7 +23,7 @@ dash_app.layout = html.Div([
     # Refresh interval
     dcc.Interval(
         id='interval-component',
-        interval=5*1000,  # update every 5 seconds
+        interval=5 * 1000,  # update every 5 seconds
         n_intervals=0
     ),
 
@@ -43,6 +44,7 @@ dash_app.layout = html.Div([
         ], className="mb-4")
     ])
 ])
+
 
 @dash_app.callback(
     [Output('traffic-graph', 'figure'),
@@ -67,7 +69,7 @@ def update_graphs(n):
 
     # Create traffic graph
     traffic_fig = px.line(df_traffic, x='timestamp', y=['packets', 'bytes'],
-                         title='Network Traffic Over Time')
+                          title='Network Traffic Over Time')
     traffic_fig.update_layout(yaxis_title='Count / Size (KB)')
 
     # Aggregate protocol data
@@ -78,8 +80,8 @@ def update_graphs(n):
 
     # Create protocol pie chart
     protocol_fig = px.pie(values=list(protocols.values()),
-                         names=list(protocols.keys()),
-                         title='Protocol Distribution')
+                          names=list(protocols.keys()),
+                          title='Protocol Distribution')
 
     # Aggregate IP data
     ip_sources = defaultdict(int)
@@ -89,19 +91,20 @@ def update_graphs(n):
 
     # Create top IPs bar chart
     top_ips = dict(sorted(ip_sources.items(),
-                         key=lambda x: x[1],
-                         reverse=True)[:10])
+                          key=lambda x: x[1],
+                          reverse=True)[:10])
     ip_fig = px.bar(x=list(top_ips.keys()),
                     y=list(top_ips.values()),
                     title='Top 10 Source IPs')
 
     return traffic_fig, protocol_fig, ip_fig
 
+
 if __name__ == '__main__':
     # Start network capture in a separate thread
     capture_thread = threading.Thread(
         target=monitor.start_capture,
-        kwargs={'interface': 'eth0'},  # Use 'en0' for Mac, 'eth0' for Linux
+        kwargs={'interface': 'eth0'},  # Use 'eth0' for Linux VPS
         daemon=True
     )
     capture_thread.start()
