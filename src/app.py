@@ -101,7 +101,7 @@ if __name__ == '__main__':
     # Start network capture in a separate thread
     capture_thread = threading.Thread(
         target=monitor.start_capture,
-        kwargs={'interface': 'en0'},  # Use 'en0' for Mac, 'eth0' for Linux
+        kwargs={'interface': 'eth0'},  # Use 'en0' for Mac, 'eth0' for Linux
         daemon=True
     )
     capture_thread.start()
