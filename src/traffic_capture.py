@@ -1,4 +1,4 @@
-# traffic_capture.py
+
 from scapy.all import sniff
 from collections import defaultdict
 import time
@@ -8,10 +8,8 @@ import queue
 
 class NetworkMonitor:
     def __init__(self):
-        # Queue to handle packet processing asynchronously
         self.packet_queue = queue.Queue()
 
-        # Statistics storage using defaultdict
         self.stats = defaultdict(lambda: {
             'packets': 0,
             'bytes': 0,
@@ -25,14 +23,23 @@ class NetworkMonitor:
         timestamp = time.time()
         size = len(packet)
 
-        # Extract protocol information
-        protocol = packet.name if hasattr(packet, 'name') else 'unknown'
+        # Ispravno određivanje protokola
+        if packet.haslayer('TCP'):
+            protocol = 'TCP'
+        elif packet.haslayer('UDP'):
+            protocol = 'UDP'
+        elif packet.haslayer('ICMP'):
+            protocol = 'ICMP'
+        elif packet.haslayer('DNS'):
+            protocol = 'DNS'
+        else:
+            protocol = 'Other'
 
-        # Extract IP information if available
+        # Dohvaćanje izvorišne i odredišne IP adrese
         src_ip = packet.getlayer('IP').src if packet.haslayer('IP') else None
         dst_ip = packet.getlayer('IP').dst if packet.haslayer('IP') else None
 
-        # Put packet info in queue for processing
+        # Spremanje informacija o paketu u queue za obradu
         self.packet_queue.put({
             'timestamp': timestamp,
             'size': size,
@@ -42,20 +49,16 @@ class NetworkMonitor:
         })
 
     def process_packets(self):
-        """Process packets from the queue and update statistics"""
         while True:
             try:
                 packet_info = self.packet_queue.get(timeout=1)
 
-                # Group statistics by minute
                 current_minute = int(packet_info['timestamp'] // 60) * 60
 
-                # Update basic statistics
                 self.stats[current_minute]['packets'] += 1
                 self.stats[current_minute]['bytes'] += packet_info['size']
                 self.stats[current_minute]['protocols'][packet_info['protocol']] += 1
 
-                # Update IP statistics if available
                 if packet_info['src_ip']:
                     self.stats[current_minute]['ip_sources'][packet_info['src_ip']] += 1
                 if packet_info['dst_ip']:
@@ -64,14 +67,12 @@ class NetworkMonitor:
             except queue.Empty:
                 continue
 
-    def start_capture(self, interface="en0"):  # Use "en0" for Mac, "eth0" for Linux
+    def start_capture(self, interface="en0"):
         """Start packet capture on specified interface"""
-        # Start packet processing thread
         process_thread = Thread(target=self.process_packets, daemon=True)
         process_thread.start()
 
         print(f"Starting capture on interface {interface}")
-        # Start packet capture
         sniff(iface=interface, prn=self.packet_callback, store=0)
 
     def get_statistics(self, minutes=5):
